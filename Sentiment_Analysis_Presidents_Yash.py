@@ -69,17 +69,20 @@ for site in sites:
 # In[3]:
 
 
+def get_url_text(url_str):
+    return requests.get(url_str, timeout = 5).text
+
 # FDR: Franklin Delano Roosevelt
 fdr_url = sites[0]
-fdr_urlText = requests.get(fdr_url).text
+fdr_urlText = get_url_text(fdr_url)
 
 # AJ: Andrew Jackson
 aj_url = sites[1]
-aj_urlText = requests.get(aj_url).text
+aj_urlText = get_url_text(aj_url)
 
 # DJT: Donald Trump
 djt_url = sites[2]
-djt_urlText = djt_r = requests.get(djt_url).text
+djt_urlText = get_url_text(djt_url)
 
 #fdr_urlText
 
@@ -90,24 +93,18 @@ djt_urlText = djt_r = requests.get(djt_url).text
 # In[4]:
 
 
+def get_page_paragraphs(url_text_str):
+    soup = BeautifulSoup(url_text_str, 'html.parser')
+    return soup.find_all("p")
+
 # FDR: Franklin Delano Roosevelt
-soup1 = BeautifulSoup(fdr_urlText, 'html.parser')
-page_response = requests.get(fdr_url,timeout=5)
-page_content = BeautifulSoup(page_response.content, "html.parser")
-fdr_paragraphs = page_content.find_all("p")
+fdr_paragraphs = get_page_paragraphs(fdr_urlText)
 
 # AJ: Andrew Jackson
-soup2 = BeautifulSoup(aj_urlText, 'html.parser')
-page_response = requests.get(aj_url,timeout=5)
-page_content = BeautifulSoup(page_response.content, "html.parser")
-aj_paragraphs = page_content.find_all("p")
+aj_paragraphs = get_page_paragraphs(aj_urlText)
 
 # DJT: Donald Trump
-soup3 = BeautifulSoup(djt_urlText, 'html.parser')
-page_response = requests.get(djt_url,timeout=5)
-page_content = BeautifulSoup(page_response.content, "html.parser")
-djt_paragraphs = page_content.find_all("p")
-
+djt_paragraphs = get_page_paragraphs(djt_urlText)
 
 #for paragraph in djt_paragraphs:
 #    print(paragraph.text)
@@ -122,46 +119,34 @@ djt_paragraphs = page_content.find_all("p")
 regex_brackets = "\[.*\]|\s-\s.*"
 regex_parentheses = "\(.*\)|\s-\s.*"
 
-# FDR: Franklin Delano Roosevelt
-lst_fdr = []
-for paragraph in fdr_paragraphs:
-    lst_fdr.append(paragraph.text)
-for item in range(len(lst_fdr)):
-    lst_fdr[item] = lst_fdr[item].strip('\n')
-    lst_fdr[item] = re.sub(regex_brackets, "", lst_fdr[item])
-    lst_fdr[item] = re.sub(regex_parentheses, "", lst_fdr[item])
-all_text_fdr = " ".join(lst_fdr).lower()
-all_text_fdr = all_text_fdr.replace(',', '').replace('"', '').strip()
-all_sentences_fdr = all_text_fdr.split('.')
-all_sentences_fdr = [s for s in all_sentences_fdr if len(s.split()) > 2]
+def get_all_text_cleaned(paragraphs):
+    lst_paragraphs = []
+    for par in paragraphs:
+        lst_paragraphs.append(par.text)
+    for item in range(len(lst_paragraphs)):
+        lst_paragraphs[item] = lst_paragraphs[item].strip('\n').lower().replace(',', '').replace('"', '')
+        lst_paragraphs[item] = re.sub(regex_brackets, "", lst_paragraphs[item])
+        lst_paragraphs[item] = re.sub(regex_parentheses, "", lst_paragraphs[item])
+    all_cleaned_text = " ".join(lst_paragraphs).strip()
+    return all_cleaned_text
 
+def get_all_sentences(all_text_str):
+    sentences = all_text_str.split('.')
+    sentences = [s for s in sentences if len(s.split()) > 1]
+    return sentences
+    
+
+# FDR: Franklin Delano Roosevelt
+all_text_fdr = get_all_text_cleaned(fdr_paragraphs)
+all_sentences_fdr = get_all_sentences(all_text_fdr)
 
 # AJ: Andrew Jackson
-lst_aj = []
-for paragraph in aj_paragraphs:
-    lst_aj.append(paragraph.text)
-for item in range(len(lst_aj)):
-    lst_aj[item] = lst_aj[item].strip('\n')
-    lst_aj[item] = re.sub(regex_brackets, "", lst_aj[item])
-    lst_aj[item] = re.sub(regex_parentheses, "", lst_aj[item])
-all_text_aj = " ".join(lst_aj).lower()
-all_text_aj = all_text_aj.replace(',', '').replace('"', '').strip()
-all_sentences_aj = all_text_aj.split('.')
-all_sentences_aj = [s for s in all_sentences_aj if len(s.split()) > 2]
-
+all_text_aj = get_all_text_cleaned(aj_paragraphs)
+all_sentences_aj = get_all_sentences(all_text_aj)
 
 # DJT: Donald Trump
-lst_djt = []
-for paragraph in djt_paragraphs:
-    lst_djt.append(paragraph.text)
-for item in range(len(lst_djt)):
-    lst_djt[item] = lst_djt[item].strip('\n')
-    lst_djt[item] = re.sub(regex_brackets, "", lst_djt[item])
-    lst_djt[item] = re.sub(regex_parentheses, "", lst_djt[item])
-all_text_djt = " ".join(lst_djt).lower()
-all_text_djt = all_text_djt.replace(',', '').replace('"', '').strip()
-all_sentences_djt = all_text_djt.split('.')
-all_sentences_djt = [s for s in all_sentences_djt if len(s.split()) > 2]
+all_text_djt = get_all_text_cleaned(djt_paragraphs)
+all_sentences_djt = get_all_sentences(all_text_djt)
 
 all_sentences_aj[:15]
 
@@ -174,28 +159,29 @@ all_sentences_aj[:15]
 
 sid = SentimentIntensityAnalyzer()
 
+def get_sentiment_lst(word_or_sentence_lst):
+    """
+    This function can be used to find the sentiments of either (1) a list of all the sentences on the page \
+    or (2) a list of all the words on the page
+    """
+    sentiments = []
+    for phrase in word_or_sentence_lst:
+        phrase_Sentiment = sid.polarity_scores(phrase)
+        phrase_Sentiment['text'] = phrase
+        sentiments.append(phrase_Sentiment)
+    return sentiments
+
+
 # FDR: Franklin Delano Roosevelt
-fdr_Sentiments = []
-for sentence in all_sentences_fdr:
-    sentence_Sentiment = sid.polarity_scores(sentence)
-    sentence_Sentiment['text'] = sentence
-    fdr_Sentiments.append(sentence_Sentiment)
+fdr_Sentiments = get_sentiment_lst(all_sentences_fdr)
 
 # AJ: Andrew Jackson
-aj_Sentiments = []
-for sentence in all_sentences_aj:
-    sentence_Sentiment = sid.polarity_scores(sentence)
-    sentence_Sentiment['text'] = sentence
-    aj_Sentiments.append(sentence_Sentiment)
+aj_Sentiments = get_sentiment_lst(all_sentences_aj)
 
 # DJT: Donald Trump
-djt_Sentiments = []
-for sentence in all_sentences_djt:
-    sentence_Sentiment = sid.polarity_scores(sentence)
-    sentence_Sentiment['text'] = sentence
-    djt_Sentiments.append(sentence_Sentiment)
+djt_Sentiments = get_sentiment_lst(all_sentences_djt)
 
-djt_Sentiments[:15]
+djt_Sentiments[:5]
 
 
 # ### Step 7: DataFrame for Each President
@@ -208,7 +194,7 @@ fdrSentimentDf = pd.DataFrame(fdr_Sentiments)
 ajSentimentDf = pd.DataFrame(aj_Sentiments)
 djtSentimentDf = pd.DataFrame(djt_Sentiments)
 
-ajSentimentDf.head(15)
+ajSentimentDf.head(10)
 
 
 # ### Step 8: Combined DataFrame for Average Compound Sentiment Scores
@@ -217,7 +203,7 @@ ajSentimentDf.head(15)
 # In[8]:
 
 
-avg_compound = [np.mean(fdrSentimentDf['compound']), np.mean(ajSentimentDf['compound']),                 np.mean(djtSentimentDf['compound'])]
+avg_compound = [np.mean(pres_df['compound']) for pres_df in [fdrSentimentDf, ajSentimentDf, djtSentimentDf]]
 df_compound = pd.DataFrame({'President':['FDR', 'Jackson', 'Trump'], 'Avg Compound':avg_compound})
 df_compound
 
@@ -246,9 +232,13 @@ ax.set_ylabel('Average Compound Score', fontsize = 17)
 # In[10]:
 
 
-all_words_fdr = all_text_fdr.replace('.','').split()
-all_words_aj = all_text_aj.replace('.','').split()
-all_words_djt = all_text_djt.replace('.','').split()
+def get_individual_words(all_text_str):
+    return all_text_str.replace('.','').split()
+
+all_words_fdr = get_individual_words(all_text_fdr)
+all_words_aj = get_individual_words(all_text_aj)
+all_words_djt = get_individual_words(all_text_djt)
+
 all_words_fdr[:15]
 
 
@@ -259,26 +249,14 @@ all_words_fdr[:15]
 
 
 # FDR: Franklin Delano Roosevelt
-fdr_Sentiments2 = []
-for word in all_words_fdr:
-    word_Sentiment = sid.polarity_scores(word)
-    word_Sentiment['text'] = word
-    fdr_Sentiments2.append(word_Sentiment)
-    
+fdr_Sentiments2 = get_sentiment_lst(all_words_fdr)
+
 # AJ: Andrew Jackson
-aj_Sentiments2 = []
-for word in all_words_aj:
-    word_Sentiment = sid.polarity_scores(word)
-    word_Sentiment['text'] = word
-    aj_Sentiments2.append(word_Sentiment)
+aj_Sentiments2 = get_sentiment_lst(all_words_aj)
 
 # DJT: Donald Trump
-djt_Sentiments2 = []
-for word in all_words_djt:
-    word_Sentiment = sid.polarity_scores(word)
-    word_Sentiment['text'] = word
-    djt_Sentiments2.append(word_Sentiment)
-    
+djt_Sentiments2 = get_sentiment_lst(all_words_djt)
+
 djt_Sentiments2[:15]
 
 
@@ -301,28 +279,29 @@ djtSentimentDf2.head(15)
 # In[13]:
 
 
+def find_most_polarizing_words(sentiment_df):
+    most_positive_lst = list(sentiment_df.sort_values(by = ['compound'], ascending = False)[:100]['text'])
+    most_positive_str = " ".join(most_positive_lst)
+    most_negative_lst = list(sentiment_df.sort_values(by = ['compound'], ascending = True)[:100]['text'])
+    most_negative_str = " ".join(most_negative_lst)
+    yield most_positive_str
+    yield most_negative_str
+
+    
 # FDR: Franklin Delano Roosevelt
-most_pos_fdr = list(fdrSentimentDf2.sort_values(by = ['compound'], ascending = False)[:100]['text'])
-for word in range(len(most_pos_fdr)):
-    most_pos_fdr[word] = most_pos_fdr[word].replace(',','').replace('.','')
-most_pos_fdr = " ".join(most_pos_fdr)
+fdr_generator = find_most_polarizing_words(fdrSentimentDf2)
+most_pos_fdr = next(fdr_generator)
+most_neg_fdr = next(fdr_generator)
 
 # AJ: Andrew Jackson
-most_pos_aj = list(ajSentimentDf2.sort_values(by = ['compound'], ascending = False)[:100]['text'])
-for word in range(len(most_pos_aj)):
-    most_pos_aj[word] = most_pos_aj[word].replace(',','').replace('.','')
-most_pos_aj = " ".join(most_pos_aj)
-
-most_neg_aj = list(ajSentimentDf2.sort_values(by = ['compound'], ascending = True)[:100]['text'])
-for word in range(len(most_neg_aj)):
-    most_neg_aj[word] = most_neg_aj[word].replace(',','').replace('.','')
-most_neg_aj = " ".join(most_neg_aj)
+aj_generator = find_most_polarizing_words(ajSentimentDf2)
+most_pos_aj = next(aj_generator)
+most_neg_aj = next(aj_generator)
 
 # DJT: Donald Trump
-most_neg_djt = list(djtSentimentDf2.sort_values(by = ['compound'], ascending = True)[:100]['text'])
-for word in range(len(most_neg_djt)):
-    most_neg_djt[word] = most_neg_djt[word].replace(',','').replace('.','')
-most_neg_djt = " ".join(most_neg_djt)
+djt_generator = find_most_polarizing_words(djtSentimentDf2)
+most_pos_djt = next(djt_generator)
+most_neg_djt = next(djt_generator)
 
 most_neg_djt
 
@@ -334,57 +313,38 @@ most_neg_djt
 
 
 cloud = WordCloud(background_color = "white", max_words = 25, collocations = False, stopwords = set(STOPWORDS))
-cloud.generate(most_pos_fdr)
 
-plt.figure(figsize = (9, 9), facecolor = None) 
-plt.imshow(cloud) 
-plt.axis("off") 
-plt.tight_layout(pad = 0) 
-plt.title('Most Frequent Positive Words About FDR')
-  
-plt.show() 
+def make_wordCloud(most_polarizing_words_str):
+    cloud.generate(most_polarizing_words_str)
+    plt.figure(figsize = (9, 9), facecolor = None) 
+    plt.imshow(cloud) 
+    plt.axis("off") 
+    plt.tight_layout(pad = 0) 
+    
 
+# FDR: Franklin Delano Roosevelt
+make_wordCloud(most_pos_fdr)
+plt.title('Most Frequent Positive Words About Franklin D. Roosevelt')
 
-# In[15]:
+make_wordCloud(most_neg_fdr)
+plt.title('Most Frequent Negative Words About Franklin D. Roosevelt')
 
-
-cloud.generate(most_pos_aj)
-
-plt.figure(figsize = (9, 9), facecolor = None) 
-plt.imshow(cloud) 
-plt.axis("off") 
-plt.tight_layout(pad = 0) 
+# AJ: Andrew Jackson
+make_wordCloud(most_pos_aj)
 plt.title('Most Frequent Positive Words About Andrew Jackson')
-  
-plt.show() 
 
-
-# In[16]:
-
-
-cloud.generate(most_neg_aj)
-
-plt.figure(figsize = (9, 9), facecolor = None) 
-plt.imshow(cloud) 
-plt.axis("off") 
-plt.tight_layout(pad = 0) 
+make_wordCloud(most_neg_aj)
 plt.title('Most Frequent Negative Words About Andrew Jackson')
-  
-plt.show() 
+
+# DJT: Donald Trump
+make_wordCloud(most_pos_djt)
+plt.title('Most Frequent Positive Words About Donald J. Trump')
+
+make_wordCloud(most_neg_djt)
+plt.title('Most Frequent Negative Words About Donald J. Trump')
 
 
-# In[17]:
-
-
-cloud.generate(most_neg_djt)
-
-plt.figure(figsize = (9, 9), facecolor = None) 
-plt.imshow(cloud) 
-plt.axis("off") 
-plt.tight_layout(pad = 0) 
-plt.title('Most Frequent Negative Words About Donald Trump')
-  
-plt.show() 
+plt.show()
 
 
 # ### Conclusion for Part 2: 
